@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+DOTFILES_CHECK_FOLDER=$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)
+DOTFILES=$(cat "$DOTFILES_CHECK_FOLDER/config/dotfiles")
+
+check () {
+  echo "$1"
+}
+
+run_check () {
+  for dotfile in $DOTFILES; do
+    check "$dotfile"
+  done
+}
+
+run_check
