@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 DOTFILES_CHECK_FOLDER=$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)
-DOTFILES=$(cat "$DOTFILES_CHECK_FOLDER/config/dotfiles")
+DOTFILES=$(cat < "$DOTFILES_CHECK_FOLDER/config/dotfiles" | egrep -o '^[^#].*')
 
 check () {
   echo "$1"
