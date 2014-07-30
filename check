@@ -1,16 +1,99 @@
 #!/usr/bin/env bash
 
 DOTFILES_CHECK_FOLDER=$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)
-DOTFILES=$(cat < "$DOTFILES_CHECK_FOLDER/config/dotfiles" | egrep -o '^[^#].*')
+LAST_CHECK_FOLDER="$DOTFILES_CHECK_FOLDER/tmp/last_check"
+DOTFILES=$(egrep -o '^[^#].*' "$DOTFILES_CHECK_FOLDER/config/dotfiles" )
 
-check () {
-  echo "$1"
-}
+mkdir -p "$LAST_CHECK_FOLDER"
 
 run_check () {
+  is_internet_available || exit 1
+
   for dotfile in $DOTFILES; do
-    check "$dotfile"
+    check "${dotfile}"
+    register_last_check "$(on "$dotfile")"
   done
+}
+
+check () {
+  local dotfile="$1"
+  on "$dotfile" |
+    is_check_needed |
+    if_exists |
+    dont_has_local_changes |
+    dont_has_local_commits |
+    update_dotfile
+}
+
+is_check_needed () {
+  while read dotfile; do
+    local last_check=$(last_check_registry_for "$dotfile")
+    [ ! -e "$last_check" ] && echo "$dotfile"
+  done
+}
+
+dont_has_local_changes () {
+  while read dotfile; do
+    local number_of_modified_files="$(cd "$dotfile" && git status --porcelain | wc -l)"
+
+    [ "$number_of_modified_files" -gt 0 ] &&
+      echo "You have local changes at ${dotfile}" 1>&2 ||
+      echo "$dotfile"
+  done
+}
+
+dont_has_local_commits () {
+  while read dotfile; do
+    local number_of_local_commits=$(cd "$dotfile" && git log origin/master..master --oneline | wc -l)
+
+    [ "$number_of_local_commits" -gt 0 ] &&
+      echo "You have commits not pushed to master at ${dotfile}" 1>&2 ||
+      echo "$dotfile"
+  done
+}
+
+update_dotfile () {
+  while read dotfile; do
+    local number_of_remote_commits=$(cd "$dotfile"
+      git remote update > /dev/null
+      git log HEAD..origin/master --oneline | wc -l
+    )
+
+    if [ "$number_of_remote_commits" -gt 0 ]; then
+      echo "You remote changes at ${dotfile}. Do you want to pull them now? (Y|n) " 1>&2
+      read -c 1 answer
+
+      case $answer in
+        (y|Y) (cd "$dotfile" && git pull > /dev/null) ;;
+      esac
+    fi
+  done
+}
+
+is_internet_available () {
+  curl -s https://github.com/ > /dev/null
+  return $?
+}
+
+register_last_check () {
+  touch "$(last_check_registry_for "$1")"
+}
+
+last_check_registry_for () {
+  local today=$(date +"%m%d%y")
+  echo "${LAST_CHECK_FOLDER}/${today}${1//\//_}"
+}
+
+if_exists () {
+  while read dotfile; do
+    [ ! -d "$dotfile" ] &&
+      echo "No dotfile found at $dotfile" 1>&2 ||
+      echo "$dotfile"
+  done
+}
+
+on () {
+  echo "${HOME}/$1"
 }
 
 run_check
