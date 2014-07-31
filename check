@@ -6,26 +6,24 @@ DOTFILES=$(egrep -o '^[^#].*' "$DOTFILES_CHECK_FOLDER/config/dotfiles" )
 
 mkdir -p "$LAST_CHECK_FOLDER"
 
-run_check () {
-  is_internet_available || exit 1
+check () {
+  for_each_dotfile_in "$DOTFILES" |
+             when_check_is_needed |
+                 directory_exists |
+           dont_has_local_changes |
+           dont_has_local_commits |
+                   update_dotfile
 
-  for dotfile in $DOTFILES; do
-    check "${dotfile}"
-    register_last_check "$(on "$dotfile")"
+  register_last_check_for_all "$DOTFILES"
+}
+
+for_each_dotfile_in () {
+  for dotfile in $1; do
+    echo "${HOME}/${dotfile}"
   done
 }
 
-check () {
-  local dotfile="$1"
-  on "$dotfile" |
-    is_check_needed |
-    if_exists |
-    dont_has_local_changes |
-    dont_has_local_commits |
-    update_dotfile
-}
-
-is_check_needed () {
+when_check_is_needed () {
   while read dotfile; do
     local last_check=$(last_check_registry_for "$dotfile")
     [ ! -e "$last_check" ] && echo "$dotfile"
@@ -54,29 +52,26 @@ dont_has_local_commits () {
 
 update_dotfile () {
   while read dotfile; do
-    local number_of_remote_commits=$(cd "$dotfile"
-      git remote update > /dev/null
-      git log HEAD..origin/master --oneline | wc -l
-    )
-
-    if [ "$number_of_remote_commits" -gt 0 ]; then
-      echo "You remote changes at ${dotfile}. Do you want to pull them now? (Y|n) " 1>&2
-      read -c 1 answer
-
-      case $answer in
-        (y|Y) (cd "$dotfile" && git pull > /dev/null) ;;
-      esac
-    fi
+    has_remote_commits "$dotfile" &&
+      confirm "You have remote changes at ${dotfile}. Do you want to pull them now?" &&
+      (cd "$dotfile" && git pull > /dev/null)
   done
 }
 
-is_internet_available () {
-  curl -s https://github.com/ > /dev/null
-  return $?
+has_remote_commits () {
+  local number_of_remote_commits=$(cd "$1"
+    git remote update > /dev/null
+    git log HEAD..origin/master --oneline | wc -l
+  )
+
+  [ "$number_of_remote_commits" -gt 0 ] && return 0
+  return 1
 }
 
-register_last_check () {
-  touch "$(last_check_registry_for "$1")"
+register_last_check_for_all () {
+  for_each_dotfile_in "$1" | while read dotfile; do
+    touch "$(last_check_registry_for "$dotfile")"
+  done
 }
 
 last_check_registry_for () {
@@ -84,7 +79,15 @@ last_check_registry_for () {
   echo "${LAST_CHECK_FOLDER}/${today}${1//\//_}"
 }
 
-if_exists () {
+confirm () {
+  echo -ne "$1 (y|N) " 1>&2 
+  read -n 1 answer < /dev/tty
+
+  [ "$answer" != 'y' ] && return 1
+  return 0
+}
+
+directory_exists () {
   while read dotfile; do
     [ ! -d "$dotfile" ] &&
       echo "No dotfile found at $dotfile" 1>&2 ||
@@ -92,8 +95,4 @@ if_exists () {
   done
 }
 
-on () {
-  echo "${HOME}/$1"
-}
-
-run_check
+check
