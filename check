@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 
 DOTFILES_CHECK_FOLDER=$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)
-LAST_CHECK_FOLDER="$DOTFILES_CHECK_FOLDER/tmp/last_check"
+LAST_CHECK_REGISTRY_FOLDER="$DOTFILES_CHECK_FOLDER/tmp/last_check"
 DOTFILES=$(egrep -o '^[^#].*' "$DOTFILES_CHECK_FOLDER/config/dotfiles" )
-
-mkdir -p "$LAST_CHECK_FOLDER"
 
 check () {
   for_each_dotfile_in "$DOTFILES" |
@@ -69,18 +67,27 @@ has_remote_commits () {
 }
 
 register_last_check_for_all () {
+  mkdir -p "$LAST_CHECK_REGISTRY_FOLDER"
+
   for_each_dotfile_in "$1" | while read dotfile; do
     touch "$(last_check_registry_for "$dotfile")"
   done
+
+  remove_old_check_data
+}
+
+remove_old_check_data () {
+  local today=$(date +"%m%d%y")
+  find "$LAST_CHECK_REGISTRY_FOLDER" -type f -not -name "${today}*" -exec rm {} \;
 }
 
 last_check_registry_for () {
   local today=$(date +"%m%d%y")
-  echo "${LAST_CHECK_FOLDER}/${today}${1//\//_}"
+  echo "${LAST_CHECK_REGISTRY_FOLDER}/${today}${1//\//_}"
 }
 
 confirm () {
-  echo -ne "$1 (y|N) " 1>&2 
+  echo -ne "$1 (y|N) " 1>&2
   read -n 1 answer < /dev/tty
 
   [ "$answer" != 'y' ] && return 1
