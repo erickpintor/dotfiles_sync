@@ -1,2 +1,2 @@
-config/dotfiles
+config/**
 tmp/**
