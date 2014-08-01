@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-DOTFILES_CHECK_FOLDER=$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)
+DOTFILES_CHECK_FOLDER=$(dirname "${BASH_SOURCE[0]}")
 LAST_CHECK_REGISTRY_FOLDER="$DOTFILES_CHECK_FOLDER/tmp/last_check"
-DOTFILES=$(egrep -o '^[^#].*' "$DOTFILES_CHECK_FOLDER/config/dotfiles" )
+DOTFILES=$(egrep -o '^[^#].*' "$DOTFILES_CHECK_FOLDER/config/dotfiles")
 
 check () {
   for_each_dotfile_in "$DOTFILES" |
-             when_check_is_needed |
+                  check_is_needed |
                  directory_exists |
            dont_has_local_changes |
            dont_has_local_commits |
@@ -21,7 +21,7 @@ for_each_dotfile_in () {
   done
 }
 
-when_check_is_needed () {
+check_is_needed () {
   while read dotfile; do
     local last_check=$(last_check_registry_for "$dotfile")
     [ ! -e "$last_check" ] && echo "$dotfile"
@@ -66,7 +66,7 @@ update_dotfile () {
 
 has_remote_commits () {
   local number_of_remote_commits=$(cd "$1"
-    git remote update > /dev/null
+    git remote update &> /dev/null
     git log HEAD..origin/master --oneline | wc -l
   )
 
