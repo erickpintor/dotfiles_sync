@@ -8,8 +8,8 @@ check () {
   for_each_dotfile_in "$DOTFILES" |
                   check_is_needed |
                  directory_exists |
-           dont_has_local_changes |
-           dont_has_local_commits |
+        doesnt_have_local_changes |
+        doesnt_have_local_commits |
                    update_dotfile
 
   register_last_check_for_all "$DOTFILES"
@@ -36,7 +36,7 @@ directory_exists () {
   done
 }
 
-dont_has_local_changes () {
+doesnt_have_local_changes () {
   while read dotfile; do
     local number_of_modified_files="$(cd "$dotfile" && git status --porcelain | wc -l)"
 
@@ -46,7 +46,7 @@ dont_has_local_changes () {
   done
 }
 
-dont_has_local_commits () {
+doesnt_have_local_commits () {
   while read dotfile; do
     local number_of_local_commits=$(cd "$dotfile" && git log origin/master..master --oneline | wc -l)
 
