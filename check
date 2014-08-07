@@ -60,7 +60,7 @@ update_dotfile () {
   while read dotfile; do
     has_remote_commits "$dotfile" &&
       confirm "You have remote changes at ${dotfile}. Do you want to pull them now?" &&
-      (cd "$dotfile" && git pull > /dev/null)
+      (cd "$dotfile" && git pull &> /dev/null)
   done
 }
 
@@ -77,7 +77,8 @@ has_remote_commits () {
 register_last_check_for_all () {
   mkdir -p "$LAST_CHECK_REGISTRY_FOLDER"
 
-  for_each_dotfile_in "$1" | while read dotfile; do
+  for_each_dotfile_in "$1" | check_is_needed | 
+  while read dotfile; do
     touch "$(last_check_registry_for "$dotfile")"
   done
 
